@@ -105,20 +105,28 @@ namespace asciiserver
 
         private static void HeadHandler(HttpListenerRequest req, HttpListenerResponse resp)
         {
-            //testing
             string readRequest = req.Url.ToString();
             string[] subStr = readRequest.Split("/");
 
-            string whatIsThis = subStr[3];
+            resp.Headers.Clear();
+            resp.Headers.Add("Server", "");
+
+            if (string.Equals(subStr[3], "downloads"))
             {
                 string dlFile = subStr[4];
                 if (File.Exists(serverRoot + @"\\" + subStr[3] +"\\" + dlFile))
                 {
-                    Console.WriteLine("ha, ha success");
-
+                    FileInfo fileSize = new FileInfo(serverRoot + @"\\" + subStr[3] + "\\" + dlFile);
+                   
+                    resp.ContentType = "application/octet-stream";
+                    resp.ContentEncoding = Encoding.UTF8;
+                    resp.ContentLength64 = fileSize.Length;
+                    resp.StatusCode = 200;
+                    resp.KeepAlive = true;
                 }
                 else
                 {
+                    Console.WriteLine("File not found");
                     resp.StatusCode = 404;
                 }
             }
@@ -127,16 +135,6 @@ namespace asciiserver
                 Console.WriteLine("not a valid url");
                 resp.StatusCode = 400;
             }
-
-            //string[] requestValues = req.Headers.GetValues("HEAD");
-
-            resp.Headers.Clear();
-            resp.ContentType = "application/octet-stream";
-            resp.ContentEncoding = Encoding.UTF8;
-            resp.ContentLength64 = 12345L;
-            resp.StatusCode = 200;
-            resp.Headers.Add("Server", "");
-            resp.KeepAlive = true;
             resp.Close();
         }
     }
