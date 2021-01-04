@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.Tasks;
 using asciiserver;
 using System.Collections.Specialized;
+using System.Runtime.CompilerServices;
 
 namespace asciiserver
 {
@@ -159,7 +160,9 @@ namespace asciiserver
                         int read;
                         using (BinaryWriter bw = new BinaryWriter(resp.OutputStream))
                         {
-                            while ((read = fs.Read(data, start, range)) > 0)
+                            //move file pointer to starting range of this chunk
+                            fs.Seek(start, SeekOrigin.Begin);
+                            while ((read = fs.Read(data, 0, range)) > 0)
                             {
                                 bw.Write(data, 0, read);
                                 bw.Flush();//remove?
