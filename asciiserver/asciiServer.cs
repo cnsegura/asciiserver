@@ -55,10 +55,10 @@ namespace asciiserver
                 Console.WriteLine();
 
                 // If `shutdown` url requested w/ POST, then shutdown the server after serving the page
-                if ((req.HttpMethod == "POST") && (req.Url.AbsolutePath == "/shutdown"))
+                if (req.HttpMethod == "POST")
                 {
-                    Console.WriteLine("Shutdown requested");
-                    runServer = false;
+
+                    runServer = PostHandler(req, resp);
                 }
 
                 if (req.HttpMethod == "HEAD")
@@ -68,20 +68,7 @@ namespace asciiserver
 
                 if(req.HttpMethod == "GET")
                 {
-                    // Make sure we don't increment the page views counter if `favicon.ico` is requested
-                    if (req.Url.AbsolutePath != "/favicon.ico")
-                        pageViews += 1;
-
-                    // Write the response info
-                    string disableSubmit = !runServer ? "disabled" : "";
-                    byte[] data = Encoding.UTF8.GetBytes(String.Format(pageData, pageViews, disableSubmit));
-                    resp.ContentType = "text/html";
-                    resp.ContentEncoding = Encoding.UTF8;
-                    resp.ContentLength64 = data.LongLength;
-
-                    // Write out to the response stream (asynchronously), then close it
-                    await resp.OutputStream.WriteAsync(data, 0, data.Length);
-                    resp.Close();
+                    await GetHandler(req, resp, runServer);
                 }
 
             }
@@ -121,21 +108,95 @@ namespace asciiserver
                     resp.ContentType = "application/octet-stream";
                     resp.ContentEncoding = Encoding.UTF8;
                     resp.ContentLength64 = fileSize.Length;
-                    resp.StatusCode = 200;
+                    resp.StatusCode = (int)HttpStatusCode.OK;
                     resp.KeepAlive = true;
                 }
                 else
                 {
                     Console.WriteLine("File not found");
-                    resp.StatusCode = 404;
+                    resp.StatusCode = (int)HttpStatusCode.NotFound;
                 }
             }
             else
             {
-                Console.WriteLine("not a valid url");
-                resp.StatusCode = 400;
+                Console.WriteLine("Not a valid url");
+                resp.StatusCode = (int)HttpStatusCode.BadRequest;
             }
             resp.Close();
+        }
+
+        private static async Task GetHandler(HttpListenerRequest req, HttpListenerResponse resp, bool runServer)
+        {
+            await Task.Run(() =>
+            {
+                string[] getRange;
+                NameValueCollection headers = req.Headers;
+                getRange = headers.GetValues("Range");
+                if (getRange != null)
+                {
+                    char[] separators = new char[] { '=', '-' };
+                    string t = getRange[0].ToString();
+                    string[] substr = t.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                    string upbound = substr[2];
+                    string lobound = substr[1];
+
+                    int range = int.Parse(upbound) - int.Parse(lobound);
+                    int start = int.Parse(lobound);
+
+                    //not checking for url formatting issues, assuming just our client connecting for now
+
+                    string readRequest = req.Url.ToString();
+                    string[] subStrFn = readRequest.Split("/");
+
+                    using (FileStream fs = File.OpenRead(serverRoot + @"\" + subStrFn[3] + @"\" + subStrFn[4]))
+                    {
+                        string FileName = (serverRoot + @"\" + subStrFn[3] + @"\" + subStrFn[4]);
+                        resp.ContentLength64 = range;
+                        resp.SendChunked = false;
+                        resp.ContentType = System.Net.Mime.MediaTypeNames.Application.Octet;
+
+                        byte[] data = new byte[range + 1]; //+1?
+                        int read;
+                        using (BinaryWriter bw = new BinaryWriter(resp.OutputStream))
+                        {
+                            while ((read = fs.Read(data, start, range)) > 0)
+                            {
+                                bw.Write(data, 0, read);
+                                bw.Flush();//remove?
+                            }
+
+                            bw.Close();
+                        }
+
+                        resp.StatusCode = (int)HttpStatusCode.OK;
+                        resp.OutputStream.Close();
+                    }
+
+                }
+
+                // Write out to the response stream (asynchronously), then close it
+                //await resp.OutputStream.WriteAsync(data, 0, data.Length);
+                //resp.Close();
+            });
+        }
+
+        private static bool PostHandler(HttpListenerRequest req, HttpListenerResponse resp)
+        {
+            if(req.Url.AbsolutePath == "/shutdown")
+            {
+                Console.WriteLine("Shutting down server");
+                resp.StatusCode = 202;
+                resp.Close();
+                return false;
+            }
+            else
+            {
+                //do something later perhaps?
+                Console.WriteLine("bad requet");
+                resp.StatusCode = 400;
+                resp.Close();
+                return true;
+            }
         }
     }
 }
