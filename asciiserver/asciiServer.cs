@@ -161,6 +161,7 @@ namespace asciiserver
                         using (BinaryWriter bw = new BinaryWriter(resp.OutputStream))
                         {
                             //move file pointer to starting range of this chunk
+                            //BUG to resolve - missing 1 byte of n+1 chunk... 
                             fs.Seek(start, SeekOrigin.Begin);
                             while ((read = fs.Read(data, 0, range)) > 0)
                             {
@@ -176,10 +177,6 @@ namespace asciiserver
                     }
 
                 }
-
-                // Write out to the response stream (asynchronously), then close it
-                //await resp.OutputStream.WriteAsync(data, 0, data.Length);
-                //resp.Close();
             });
         }
 
@@ -188,7 +185,7 @@ namespace asciiserver
             if(req.Url.AbsolutePath == "/shutdown")
             {
                 Console.WriteLine("Shutting down server");
-                resp.StatusCode = 202;
+                resp.StatusCode = (int)HttpStatusCode.Accepted;
                 resp.Close();
                 return false;
             }
@@ -196,7 +193,7 @@ namespace asciiserver
             {
                 //do something later perhaps?
                 Console.WriteLine("bad requet");
-                resp.StatusCode = 400;
+                resp.StatusCode = (int)HttpStatusCode.BadRequest;
                 resp.Close();
                 return true;
             }

@@ -11,8 +11,9 @@ namespace asciiserver
     {
         static void Main(string[] args)
         {
-            string serverURL = "http://localhost:8080/";
-            asciiServer.serverRoot = @"C:\SPaCE\testAutomation\testserver\asciiserver\asciiserver";
+            string serverURL = "";
+            //asciiServer.serverRoot = @"C:\SPaCE\testAutomation\testserver\asciiserver\asciiserver";
+            asciiServer.serverRoot = @"C:\ascii5g";
             asciiServer.ServerInit(serverURL);
 
         }
